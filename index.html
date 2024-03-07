@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Experience with physics</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Madimi+One&display=swap"
+      rel="stylesheet"
+    />
+
+    <style>
+      html,
+      body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        background-color: #9e9e9e;
+      }
+
+      body,
+      button {
+        font-family: "Madimi One", sans-serif;
+        font-weight: 400;
+        font-style: normal;
+      }
+
+      canvas {
+        background-color: #fff;
+        border-radius: 10px;
+      }
+
+      .add-circle-button {
+        background-color: #3f51b5;
+        padding: 1rem 2rem;
+        text-transform: uppercase;
+        font-size: 1.25rem;
+        border-radius: 10px;
+        border: 0 none;
+        color: #fff;
+        cursor: pointer;
+      }
+
+      .add-circle-button:hover {
+        transform: scale(1.05);
+      }
+
+      .add-circle-button:active {
+        transform: scale(1);
+      }
+
+      .container {
+        display: flex;
+        align-items: center;
+        flex-direction: column;
+        justify-content: center;
+        height: 100vh;
+      }
+
+      .title {
+        text-align: center;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="container">
+      <div>
+        <h1 class="title">Experience with Physics</h1>
+
+        <canvas id="canvas" width="800" height="600"></canvas>
+
+        <div>
+          <span id="totalDisplay"></span>
+          <span>/</span>
+          <span id="fpsDisplay"></span>
+        </div>
+      </div>
+      <button class="add-circle-button" onclick="addCircle()">
+        Add Circles
+      </button>
+    </div>
+
+    <script>
+      const canvas = document.getElementById("canvas");
+      const ctx = canvas.getContext("2d");
+
+      const fpsDisplay = document.getElementById("fpsDisplay");
+      const totalDisplay = document.getElementById("totalDisplay");
+
+      const balls = [];
+      let lastFrameTime = performance.now();
+
+      function getRandomNumber(min, max) {
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+      }
+
+      function getRandomColor() {
+        const letters = "0123456789ABCDEF";
+        let color = "#";
+
+        for (let i = 0; i < 6; i++) {
+          color += letters[Math.floor(Math.random() * 16)];
+        }
+
+        return color;
+      }
+
+      function addCircle() {
+        const radius = getRandomNumber(5, 25);
+
+        const newBall = {
+          color: getRandomColor(),
+          x: getRandomNumber(20, canvas.width),
+          y: getRandomNumber(20, canvas.height),
+          radius,
+          velocityX: getRandomNumber(-5, 5),
+          velocityY: getRandomNumber(-5, 5),
+          gravity: 0.5 * (radius * 0.1),
+          isDragging: false,
+          dragStartX: 0,
+          dragStartY: 0,
+        };
+
+        balls.push(newBall);
+      }
+
+      function drawBall(ball) {
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+        ctx.fillStyle = ball.color;
+        ctx.fill();
+        ctx.closePath();
+      }
+
+      function checkCollision(ball1, ball2) {
+        const dx = ball1.x - ball2.x;
+        const dy = ball1.y - ball2.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance < ball1.radius + ball2.radius) {
+          return true;
+        }
+
+        return false;
+      }
+
+      function update() {
+        let currentTime = performance.now();
+        const deltaTime = currentTime - lastFrameTime;
+        const fps = 1000 / deltaTime;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        balls.forEach(function (ball, index) {
+          drawBall(ball);
+
+          // Applies gravity to the ball's Y speed
+          if (!ball.isDragging) {
+            ball.velocityY += ball.gravity;
+          }
+
+          // Update ball position
+          ball.x += ball.velocityX;
+          ball.y += ball.velocityY;
+
+          // Checks if the ball hits the ground
+          if (ball.y + ball.radius >= canvas.height) {
+            // Inverts Y speed to simulate bounce
+            ball.velocityY *= -0.8;
+            // Fix ball position to prevent it from leaving the ground
+            ball.y = canvas.height - ball.radius;
+          }
+
+          // Checks if the ball has reached the side edges of the canvas
+          if (ball.x + ball.radius >= canvas.width) {
+            // // Inverts the X speed to simulate rebound
+            ball.velocityX *= -0.8;
+            // Correct the position of the ball to prevent it from leaving the canvas
+            ball.x = canvas.width - ball.radius;
+          } else if (ball.x - ball.radius <= 0) {
+            // Inverts the X speed to simulate rebound
+            ball.velocityX *= -0.8;
+            // Correct the position of the ball to prevent it from leaving the canvas
+            ball.x = ball.radius;
+          }
+
+          // Checks if the ball has reached the top of the canvas
+          if (ball.y - ball.radius <= 0) {
+            // Inverts the Y speed to simulate rebound
+            ball.velocityY *= -0.8;
+            // Correct the position of the ball to prevent it from leaving the canvas
+            ball.y = ball.radius;
+          }
+
+          // Check collision with other balls
+          balls.forEach(function (otherBall, otherIndex) {
+            if (index !== otherIndex) {
+              if (checkCollision(ball, otherBall)) {
+                // The balls collided, reverse speeds
+                const tempVelocityX = ball.velocityX;
+                const tempVelocityY = ball.velocityY;
+                ball.velocityX = otherBall.velocityX;
+                ball.velocityY = otherBall.velocityY;
+                otherBall.velocityX = tempVelocityX;
+                otherBall.velocityY = tempVelocityY;
+              }
+            }
+          });
+
+          canvas.addEventListener("mousedown", function (event) {
+            // Checks if the click occurred inside the ball
+            const distance = Math.sqrt(
+              Math.pow(event.offsetX - ball.x, 2) +
+                Math.pow(event.offsetY - ball.y, 2)
+            );
+            if (distance <= ball.radius + 50) {
+              // increase the click radius to 30 pixels
+              // Defines the ball as being dragged
+              ball.isDragging = true;
+              // Saves the initial mouse position when the ball is pressed
+              ball.dragStartX = event.offsetX;
+              ball.dragStartY = event.offsetY;
+              // If the ball is moving, stop it immediately
+              ball.velocityX = 0;
+              ball.velocityY = 0;
+            }
+          });
+
+          canvas.addEventListener("mousemove", function (event) {
+            if (ball.isDragging) {
+              // Update ball position with mouse position
+              ball.x = event.offsetX;
+              ball.y = event.offsetY;
+            }
+          });
+
+          canvas.addEventListener("mouseup", function (event) {
+            if (ball.isDragging) {
+              // Calculates the difference between the mouse position when the ball is released and when it is pressed
+              const diffX = event.offsetX - ball.dragStartX;
+              const diffY = event.offsetY - ball.dragStartY;
+              // Adjusts ball speed based on the difference
+              ball.velocityX = diffX / 50;
+              ball.velocityY = diffY / 50;
+              // Sets the ball as not being dragged
+              ball.isDragging = false;
+            }
+          });
+        });
+
+        lastFrameTime = currentTime;
+
+        fpsDisplay.innerText = `FPS: ${fps.toFixed(2)}`;
+        totalDisplay.innerText = `TOTAL: ${balls.length}`;
+
+        requestAnimationFrame(update);
+      }
+
+      update();
+    </script>
+  </body>
+</html>
